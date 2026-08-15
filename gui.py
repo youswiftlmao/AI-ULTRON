@@ -100,11 +100,11 @@ class HologramCore(QWidget):
             )
 
             #vertical thingie
-            width_ring =  190 + ring * 25
-            height_ring =  190 + ring * 15
+            width_ring =  150 + ring * 25
+            height_ring =  150 + ring * 15
 
             pen = QPen(
-                QColor(255, 140, 0, 170 - ring * 35)
+                QColor(255, 140, 0, 170 - ring * 25)
             )
 
             pen.setWidth(2)
@@ -122,8 +122,8 @@ class HologramCore(QWidget):
             #cool tech marker
             painter.setPen(
                 QPen(
-                    QColor(255, 190, 80, 220),
-                    4
+                    QColor(255, 150, 40, 180),
+                    2
                 )
             )
 
@@ -200,3 +200,54 @@ class HologramCore(QWidget):
 
         painter.end()
 
+class UltronWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setWindowFlag(Qt.FramelessWindowHint)
+
+        self.setWindowTitle("ULTRON")
+        self.resize(850, 550)
+
+        central = QWidget()
+        self.setCentralWidget(central)
+
+        layout = QVBoxLayout()
+        central.setLayout(layout)
+
+        title = QLabel("ULTRON")
+        title.setAlignment(Qt.AlignCenter)
+        title.setFont(QFont("Arial", 36, QFont.Bold))
+
+        status = QLabel("● SYSTEM ONLINE")
+        status.setAlignment(Qt.AlignCenter)
+        status.setFont(QFont("Arial", 16))
+
+        core = HologramCore()
+
+        layout.addWidget(title)
+        layout.addWidget(status)
+        layout.addWidget(core, 1)
+
+        central.setStyleSheet("""
+            QWidget {
+                background-color: rgba(12, 8, 5, 205);
+                color: #ff8c00;
+                border: 1px solid rgba(255, 120, 20, 100);
+                border-radius: 18px;
+            }
+
+            QLabel {
+                color: #ff8c00;
+                background-color: transparent;
+                border: none;
+            }
+        """)
+
+app = QApplication(sys.argv)
+
+window = UltronWindow()
+window.show()
+
+sys.exit(app.exec())
