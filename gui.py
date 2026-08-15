@@ -1,80 +1,59 @@
 import sys
+import math
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QFont, QPainter, QPen, QRadialGradient
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
-    QVBoxLayout,
     QWidget,
+    QVBoxLayout,
     QLabel,
 )
 
-class UltronWindow(QMainWindow):
+class HologramCore(QWidget):
     def __init__(self):
         super().__init__()
 
-        self.setAttribute(Qt.WA_TranslucentBackground)
-        self.setWindowFlag(Qt.FramelessWindowHint)
+        self.angle = 0 
+        self.pulse = 0
 
-        self.setWindowTitle("ULTRON")
-        self.resize(850, 550)
+        #animation timer
+        self.timerEvent = QTimer(self)
+        self.timer.timeout.connect(self.animate)
+        self.timer.start(16)  # ~60 FPS
 
-        #the main window
+    def animate(self):
+        self.angle += 1
 
-        central = QWidget()
-        self.setCentralWidget(central)
+        if self.angle >= 360:
+            self.angle = 0
+
+        self.pulse += 0.05
+
+        self.update()
+    def paintEvent(self, event):
+        painter = QPainter(self)
+
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        width = self.width()
+        height = self.height()
+
+        center_x = width / 2
+        center_y = height / 2
 
 
-        layout = QVBoxLayout()
-        central.setLayout(layout)
+        #the core/ orb pusles
+        pulse_size = 1 + math.sin(self.pulse) * 0.08
 
-        #main title text
-        title = QLabel("ULTRON")
-        title.setAlignment(Qt.AlignCenter)
+        orb_radius = 55* pulse_size
 
-        title__font = QFont("Arial", 36, QFont.Bold)
-        title.setFont(title__font)
+        #orb glowwww
 
-        #state / status gulp 
-        status = QLabel("● SYSTEM ONLINE")
-        status.setAlignment(Qt.AlignCenter)
-
-        status_font = QFont("Arial", 18)
-        status.setFont(status_font)
-
-        #main stuff
-        core = QLabel("ULTRON CORE")
-        core.setAlignment(Qt.AlignCenter)
-
-        core_font = QFont("Arial", 28, QFont.Bold)
-        core.setFont(core_font)
-
-        layout.addWidget(title)
-        layout.addWidget(status)
-        layout.addStretch()
-        layout.addWidget(core)
-        layout.addStretch()
-
-        #holografic display
-        central.setStyleSheet("""
-            QWidget {
-                background-color: rgba(35, 18, 5, 210);
-                color: #ff8c00;
-                border: 1px solid rgba(255, 140, 0, 120);
-                border-radius: 20px;
-            }
-
-            QLabel {
-                color: #ff8c00;
-                background-color: transparent;
-                border: none;
-            }
-        """)
-
-app = QApplication(sys.argv)
-
-window = UltronWindow()
-window.show()
-
-sys.exit(app.exec())
+        glow = QRadialGradient(
+            center_x,
+            center_y,
+            130
+        )
+        
