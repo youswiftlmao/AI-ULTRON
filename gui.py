@@ -2,7 +2,13 @@ import sys
 import math
 import random
 
-from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtCore import (
+    Qt,
+    QTimer,
+    Signal,
+    QPropertyAnimation,
+    QEasingCurve
+)
 from PySide6.QtGui import QFont, QSurfaceFormat
 from PySide6.QtWidgets import (
     QApplication,
@@ -12,7 +18,8 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QPushButton
+    QPushButton,
+    QTextEdit
 )
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 
@@ -679,7 +686,24 @@ class MessageInput(QLineEdit):
 
         super().keyPressEvent(event)
 
+#the chat wit translucent overlay
+class ChatOverlay(QWidget):
 
+    def __init__(self, parent = None):
+        super().__init__(parent)
+
+        self.setAttribute(
+            Qt.WA_StyledBackground,
+            True
+        )
+
+        self.setstylesheet("""
+            QWidget {
+                background-color: rgba(18, 12, 8, 225);
+                border: 2px solid rgba(255, 120, 20, 170);
+                border-radius: 16px;
+                }
+        """)
 # main window with everything
 class UltronWindow(QMainWindow):
 
@@ -722,6 +746,22 @@ class UltronWindow(QMainWindow):
 
         layout.setSpacing(2)
 
+        #top bar
+        top_bar = QWidget()
+
+        top_layout = QHBoxLayout(
+            top_bar
+        )
+
+        top_layout.setContentsMargins(
+            5,
+            0,
+            5,
+            0
+        )
+
+        top_layout.setSpacing(0)
+
 
         # title
         title = QLabel(
@@ -729,7 +769,7 @@ class UltronWindow(QMainWindow):
         )
 
         title.setAlignment(
-            Qt.AlignCenter
+            Qt.AlignLeft | Qt.AlignVCenter
         )
 
         title.setFont(
@@ -747,7 +787,7 @@ class UltronWindow(QMainWindow):
         )
 
         status.setAlignment(
-            Qt.AlignCenter
+            Qt.AlignRight | Qt.AlignVCenter
         )
 
         status.setFont(
@@ -757,6 +797,16 @@ class UltronWindow(QMainWindow):
             )
         )
 
+
+
+        top_layout.addWidget(
+            title,
+            1
+        )
+
+        top_layout.addWidget(
+            status
+        )
 
         # hologram
         core = HologramCore()
@@ -828,11 +878,7 @@ class UltronWindow(QMainWindow):
 
 
         layout.addWidget(
-            title
-        )
-
-        layout.addWidget(
-            status
+            top_bar
         )
 
         layout.addWidget(
