@@ -2,14 +2,17 @@ import sys
 import math
 import random
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QFont, QSurfaceFormat
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
     QWidget,
     QVBoxLayout,
-    QLabel
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton
 )
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 
@@ -208,7 +211,7 @@ class HologramCore(QOpenGLWidget):
     def paintGL(self):
 
         glClear(
-            GL_COLOR_BUFFER_BIT 
+            GL_COLOR_BUFFER_BIT
         )
 
         glMatrixMode(
@@ -653,12 +656,29 @@ class HologramCore(QOpenGLWidget):
         # smooth continuous animation
         self.angle += 0.45
 
-        if self.angle >= 360:
-            self.angle -= 360
-
         self.time += 0.02
 
         self.update()
+
+
+# message input area and enter key bind
+class MessageInput(QLineEdit):
+
+    sendPressed = Signal()
+
+    def keyPressEvent(self, event):
+
+        if event.key() in (
+            Qt.Key_Return,
+            Qt.Key_Enter
+        ):
+
+            self.sendPressed.emit()
+
+            return
+
+        super().keyPressEvent(event)
+
 
 # main window with everything
 class UltronWindow(QMainWindow):
@@ -742,6 +762,71 @@ class UltronWindow(QMainWindow):
         core = HologramCore()
 
 
+        # message area
+        message_area = QWidget()
+
+        message_layout = QHBoxLayout(
+            message_area
+        )
+
+        message_layout.setContentsMargins(
+            0,
+            8,
+            0,
+            0
+        )
+
+        message_layout.setSpacing(8)
+
+
+        # input area
+        self.message_input = MessageInput()
+
+        self.message_input.setPlaceholderText(
+            "Send a message..."
+        )
+
+        self.message_input.setFixedHeight(
+            46
+        )
+
+
+        # send btn
+        send_button = QPushButton(
+            "➤"
+        )
+
+        send_button.setFixedSize(
+            46,
+            46
+        )
+
+        send_button.setToolTip(
+            "Send message"
+        )
+
+
+        # send the message when clicked
+        send_button.clicked.connect(
+            self.send_message
+        )
+
+        # send the message when Enter is pressed
+        self.message_input.sendPressed.connect(
+            self.send_message
+        )
+
+
+        message_layout.addWidget(
+            self.message_input,
+            1
+        )
+
+        message_layout.addWidget(
+            send_button
+        )
+
+
         layout.addWidget(
             title
         )
@@ -755,6 +840,10 @@ class UltronWindow(QMainWindow):
             1
         )
 
+        layout.addWidget(
+            message_area
+        )
+
 
         # translucent hologram-style background
         # dark holographic glass background
@@ -762,10 +851,6 @@ class UltronWindow(QMainWindow):
             QWidget {
                 background-color: rgb(18, 12, 8);
                 color: #ff8c00;
-
-                /* slightly thicker holographic glass border */
-                border: 2px solid rgba(255, 120, 20, 190);
-                border-radius: 18px;
             }
 
             QLabel {
@@ -773,7 +858,54 @@ class UltronWindow(QMainWindow):
                 background-color: transparent;
                 border: none;
             }
+
+            QLineEdit {
+                background-color: rgba(10, 7, 5, 220);
+                color: #ff9d2e;
+                border: 2px solid rgba(255, 120, 20, 170);
+                border-radius: 12px;
+                padding-left: 14px;
+                padding-right: 14px;
+                font-size: 15px;
+            }
+
+            QLineEdit:focus {
+                border: 2px solid rgba(255, 150, 40, 220);
+            }
+
+            QPushButton {
+                background-color: rgba(30, 18, 8, 230);
+                color: #ff9d2e;
+                border: 2px solid rgba(255, 120, 20, 180);
+                border-radius: 12px;
+                font-size: 22px;
+                font-weight: bold;
+            }
+
+            QPushButton:hover {
+                background-color: rgba(60, 30, 10, 240);
+            }
+
+            QPushButton:pressed {
+                background-color: rgba(255, 100, 10, 180);
+            }
         """)
+
+
+    # handle messages from the input box
+    def send_message(self):
+
+        message = self.message_input.text().strip()
+
+        if not message:
+            return
+
+        print(
+            "User:",
+            message
+        )
+
+        self.message_input.clear()
 
 
 # start application
