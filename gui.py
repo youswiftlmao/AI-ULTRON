@@ -187,7 +187,7 @@ class HologramCore(QOpenGLWidget):
         )
 
 
-        glPointSize(4.0)
+        glPointSize(16.0)
 
         glBegin(GL_POINTS)
 
@@ -235,6 +235,97 @@ class HologramCore(QOpenGLWidget):
         glBegin(GL_POINTS)
 
         for vertex in self.vertices:
+            glColor4f(
+                1.0,
+                0.65,
+                0.15,
+                0.95
+            )
+
+            glVertex3fv(vertex)
+
+        glEnd()
+
+        glPopMatrix()
+
+        painter_rings = [
+            (1.85, 0.55, 0.12, self.angle),
+            (2.05, 0.35, 0.08, -self.angle * 0.7),
+            (2.25, 0.20, 0.05, self.angle * 0.45),
+        ]
+
+
+        for radius, height, alpha, rotation, in  painter_rings:
+            glPushMatrix()
+
+            glRotatef(
+                rotation,
+                0.4,
+                1.0,
+                0.2
+            )
+
+            glLineWidth(2.0)
+
+            glBegin(GL_LINE_LOOP)
+
+            glColor4f(
+                1.0,
+                0.55,
+                0.08,
+                alpha
+            )
+
+            for i in range(100):
+                angle =  2 * math.pi * i / 100
+
+                x = radius * math.cos(angle)
+                y = height * math.sin(angle)
+
+                glVertex3f(
+                    x,
+                    y,
+                    0
+                )
+
+        glEnd()
+        glPopMatrix()
+
+    glLineWidth(1.5)
+    glBegin(GL_LINES)
+
+    for i, beam in enumerate(self.beams):
+
+        if i % 2 == 0:
+
+            glColor4f(
+                1.0,
+                0.55,
+                0.08,
+                0.75
+            )
+
+            glVertex3f(
+                0.0,
+                0.0,
+                0.0
+            )
+
+            glColor4f(
+                1.0,
+                0.25,
+                0.0,
+                0.0
+            )
+
+            glVertex3fv(beam)
+
+
+    glEnd()
+
+            
+
+
 
 
 
