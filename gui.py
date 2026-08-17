@@ -2,13 +2,7 @@ import sys
 import math
 import random
 
-from PySide6.QtCore import (
-    Qt,
-    QTimer,
-    Signal,
-    QPropertyAnimation,
-    QEasingCurve
-)
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QFont, QSurfaceFormat
 from PySide6.QtWidgets import (
     QApplication,
@@ -19,9 +13,10 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
-    QTextEdit,
-    QGraphicsOpacityEffect
-    )
+    QScrollArea,
+    QSizePolicy,
+    QFrame
+)
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 
 from OpenGL.GL import *
@@ -38,33 +33,24 @@ format.setSwapInterval(1)
 QSurfaceFormat.setDefaultFormat(format)
 
 
-# the core part with 3d renders and animations
 class HologramCore(QOpenGLWidget):
+
     def __init__(self):
         super().__init__()
 
-        # make the OpenGL area match the main window
         self.setAutoFillBackground(False)
 
-        # rotating animation
         self.angle = 0
         self.time = 0
 
-        # like sphere poly
-        # smaller core
         self.vertices, self.edges = self.create_sphere(
-            0.90,
-            12,
-            24
+            0.90, 12, 24
         )
 
-        # energy beams
         self.beams = self.create_beams(
-            24,
-            2.25
+            24, 2.25
         )
 
-        # sphere particles
         self.particles = []
 
         for _ in range(180):
@@ -78,7 +64,6 @@ class HologramCore(QOpenGLWidget):
                 radius * math.cos(phi)
             ))
 
-        # ambient particles
         self.ambient = []
 
         for _ in range(60):
@@ -90,23 +75,16 @@ class HologramCore(QOpenGLWidget):
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.animate)
-
-        # slightly lower FPS so the PC doesn't work unnecessarily hard
         self.timer.start(20)
 
-
-    # create the 3d sphere
     def create_sphere(self, radius, rings, segments):
-
         vertices = []
         edges = []
 
         for i in range(rings + 1):
-
             lat = math.pi * (i / rings - 0.5)
 
             for j in range(segments):
-
                 lon = 2 * math.pi * j / segments
 
                 x = radius * math.cos(lon) * math.cos(lat)
@@ -116,9 +94,7 @@ class HologramCore(QOpenGLWidget):
                 vertices.append((x, y, z))
 
         for i in range(rings):
-
             for j in range(segments):
-
                 p = i * segments + j
                 next_p = i * segments + (j + 1) % segments
 
@@ -127,23 +103,12 @@ class HologramCore(QOpenGLWidget):
 
         return vertices, edges
 
-
-    # energy beams
     def create_beams(self, count, length):
-
         beams = []
 
         for _ in range(count):
-
-            theta = random.uniform(
-                0,
-                2 * math.pi
-            )
-
-            phi = random.uniform(
-                0,
-                math.pi
-            )
+            theta = random.uniform(0, 2 * math.pi)
+            phi = random.uniform(0, math.pi)
 
             beams.append((
                 length * math.sin(phi) * math.cos(theta),
@@ -153,54 +118,24 @@ class HologramCore(QOpenGLWidget):
 
         return beams
 
-
-    # colors blending and smoothness
     def initializeGL(self):
-
-        glClearColor(
-            0.070,
-            0.047,
-            0.031,
-            1.0
-        )
+        glClearColor(0.070, 0.047, 0.031, 1.0)
 
         glEnable(GL_BLEND)
-
-        glBlendFunc(
-            GL_SRC_ALPHA,
-            GL_ONE
-        )
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE)
 
         glEnable(GL_POINT_SMOOTH)
         glEnable(GL_LINE_SMOOTH)
 
-        glHint(
-            GL_LINE_SMOOTH_HINT,
-            GL_NICEST
-        )
-
-        glHint(
-            GL_POINT_SMOOTH_HINT,
-            GL_NICEST
-        )
-
+        glHint(GL_LINE_SMOOTH_HINT, GL_NICEST)
+        glHint(GL_POINT_SMOOTH_HINT, GL_NICEST)
 
     def resizeGL(self, width, height):
+        height = max(height, 1)
 
-        if height <= 0:
-            height = 1
+        glViewport(0, 0, width, height)
 
-        glViewport(
-            0,
-            0,
-            width,
-            height
-        )
-
-        glMatrixMode(
-            GL_PROJECTION
-        )
-
+        glMatrixMode(GL_PROJECTION)
         glLoadIdentity()
 
         gluPerspective(
@@ -210,46 +145,20 @@ class HologramCore(QOpenGLWidget):
             50.0
         )
 
-        glMatrixMode(
-            GL_MODELVIEW
-        )
+        glMatrixMode(GL_MODELVIEW)
 
-
-    # hologram core area
     def paintGL(self):
+        glClear(GL_COLOR_BUFFER_BIT)
 
-        glClear(
-            GL_COLOR_BUFFER_BIT
-        )
-
-        glMatrixMode(
-            GL_MODELVIEW
-        )
-
+        glMatrixMode(GL_MODELVIEW)
         glLoadIdentity()
 
-        # move the hologram back
-        glTranslatef(
-            0,
-            0,
-            -6
-        )
+        glTranslatef(0, 0, -6)
+        glDisable(GL_DEPTH_TEST)
 
-        # energy effects don't need depth
-        glDisable(
-            GL_DEPTH_TEST
-        )
-
-
-        # background particles
         self.draw_ambient()
-
-
-        # energy spikes
         self.draw_spikes()
 
-
-        # main sphere
         glPushMatrix()
 
         glRotatef(
@@ -259,62 +168,35 @@ class HologramCore(QOpenGLWidget):
             0.15
         )
 
-
         # glowing core
-        # bigger center dot
         self.glow(95, 0.018)
         self.glow(65, 0.045)
         self.glow(42, 0.12)
         self.glow(25, 0.30)
         self.glow(17, 1.0)
 
-
-        # wireframe sphere
         glLineWidth(1.0)
-
         glBegin(GL_LINES)
 
         for a, b in self.edges:
+            glColor4f(1.0, 0.42, 0.03, 0.75)
 
-            glColor4f(
-                1.0,
-                0.42,
-                0.03,
-                0.75
-            )
-
-            glVertex3fv(
-                self.vertices[a]
-            )
-
-            glVertex3fv(
-                self.vertices[b]
-            )
+            glVertex3fv(self.vertices[a])
+            glVertex3fv(self.vertices[b])
 
         glEnd()
 
-
-        # sphere nodes
         glPointSize(2.0)
-
         glBegin(GL_POINTS)
 
-        glColor4f(
-            1.0,
-            0.65,
-            0.12,
-            0.85
-        )
+        glColor4f(1.0, 0.65, 0.12, 0.85)
 
         for vertex in self.vertices:
             glVertex3fv(vertex)
 
         glEnd()
-
         glPopMatrix()
 
-
-        # outer particles
         glPushMatrix()
 
         glRotatef(
@@ -325,70 +207,35 @@ class HologramCore(QOpenGLWidget):
         )
 
         glPointSize(2.0)
-
         glBegin(GL_POINTS)
 
-        glColor4f(
-            1.0,
-            0.50,
-            0.05,
-            0.55
-        )
+        glColor4f(1.0, 0.50, 0.05, 0.55)
 
         for particle in self.particles:
             glVertex3fv(particle)
 
         glEnd()
-
         glPopMatrix()
 
-
-        # lots of orange spinning rings
         self.draw_rings()
-
-
-        # radial beams
         self.draw_beams()
 
+        glEnable(GL_DEPTH_TEST)
 
-        # turn depth testing back on
-        glEnable(
-            GL_DEPTH_TEST
-        )
-
-
-    # glowing center
     def glow(self, size, alpha):
-
         glPointSize(size)
-
         glBegin(GL_POINTS)
 
-        glColor4f(
-            1.0,
-            0.55,
-            0.05,
-            alpha
-        )
-
-        glVertex3f(
-            0,
-            0,
-            0
-        )
+        glColor4f(1.0, 0.55, 0.05, alpha)
+        glVertex3f(0, 0, 0)
 
         glEnd()
 
-
-    # ambient space particles
     def draw_ambient(self):
-
         glPointSize(1.5)
-
         glBegin(GL_POINTS)
 
         for particle in self.ambient:
-
             particle[1] += particle[2]
 
             radius = particle[0]
@@ -396,36 +243,18 @@ class HologramCore(QOpenGLWidget):
 
             x = radius * math.cos(angle)
             y = radius * math.sin(angle)
+            z = math.sin(self.time + angle) * 0.25
 
-            z = math.sin(
-                self.time + angle
-            ) * 0.25
-
-            glColor4f(
-                1.0,
-                0.65,
-                0.12,
-                0.55
-            )
-
-            glVertex3f(
-                x,
-                y,
-                z
-            )
+            glColor4f(1.0, 0.65, 0.12, 0.55)
+            glVertex3f(x, y, z)
 
         glEnd()
 
-
-    # energy spikes
     def draw_spikes(self):
-
         glLineWidth(1.5)
-
         glBegin(GL_LINES)
 
         for i in range(18):
-
             angle = (
                 i * 2 * math.pi / 18
                 + self.time * 0.12
@@ -433,32 +262,13 @@ class HologramCore(QOpenGLWidget):
 
             length = (
                 2.05
-                + math.sin(
-                    self.time * 3 + i
-                ) * 0.16
+                + math.sin(self.time * 3 + i) * 0.16
             )
 
-            # bright start
-            glColor4f(
-                1.0,
-                0.45,
-                0.03,
-                0.55
-            )
+            glColor4f(1.0, 0.45, 0.03, 0.55)
+            glVertex3f(0, 0, 0)
 
-            glVertex3f(
-                0,
-                0,
-                0
-            )
-
-            # fade out
-            glColor4f(
-                1.0,
-                0.15,
-                0.0,
-                0.0
-            )
+            glColor4f(1.0, 0.15, 0.0, 0.0)
 
             glVertex3f(
                 length * math.cos(angle),
@@ -468,10 +278,7 @@ class HologramCore(QOpenGLWidget):
 
         glEnd()
 
-
-    # orange orbital rings
     def draw_rings(self):
-
         rings = [
             (1.25, 0.18, self.angle * 1.30, 0.55),
             (1.45, 0.30, -self.angle * 1.00, 0.48),
@@ -481,9 +288,7 @@ class HologramCore(QOpenGLWidget):
             (2.25, 0.45, -self.angle * 0.30, 0.22)
         ]
 
-
         for radius, height, rotation, alpha in rings:
-
             glPushMatrix()
 
             glRotatef(
@@ -493,10 +298,7 @@ class HologramCore(QOpenGLWidget):
                 0.2
             )
 
-
-            # soft glow around ring
             glLineWidth(5.0)
-
             glBegin(GL_LINE_LOOP)
 
             glColor4f(
@@ -507,10 +309,7 @@ class HologramCore(QOpenGLWidget):
             )
 
             for i in range(80):
-
-                angle = (
-                    2 * math.pi * i / 80
-                )
+                angle = 2 * math.pi * i / 80
 
                 glVertex3f(
                     radius * math.cos(angle),
@@ -520,10 +319,7 @@ class HologramCore(QOpenGLWidget):
 
             glEnd()
 
-
-            # bright ring
             glLineWidth(1.5)
-
             glBegin(GL_LINE_LOOP)
 
             glColor4f(
@@ -534,10 +330,7 @@ class HologramCore(QOpenGLWidget):
             )
 
             for i in range(80):
-
-                angle = (
-                    2 * math.pi * i / 80
-                )
+                angle = 2 * math.pi * i / 80
 
                 glVertex3f(
                     radius * math.cos(angle),
@@ -546,39 +339,26 @@ class HologramCore(QOpenGLWidget):
                 )
 
             glEnd()
-
             glPopMatrix()
 
-
-        # rotating broken arcs
         for side in range(4):
-
             start = (
-                self.time *
-                (0.8 + side * 0.15)
+                self.time * (0.8 + side * 0.15)
                 + side * math.pi / 2
             )
 
             glLineWidth(3.0)
-
             glBegin(GL_LINE_STRIP)
 
             for i in range(30):
-
                 angle = (
-                    start +
-                    i / 29 *
-                    math.pi / 2.5
+                    start
+                    + i / 29 * math.pi / 2.5
                 )
 
                 radius = 2.10
 
-                glColor4f(
-                    1.0,
-                    0.50,
-                    0.05,
-                    0.70
-                )
+                glColor4f(1.0, 0.50, 0.05, 0.70)
 
                 glVertex3f(
                     radius * math.cos(angle),
@@ -588,14 +368,10 @@ class HologramCore(QOpenGLWidget):
 
             glEnd()
 
-
-        # little rotating energy dots
         glPointSize(5.0)
-
         glBegin(GL_POINTS)
 
         for i in range(8):
-
             angle = (
                 self.time * 1.5
                 + i * math.pi / 4
@@ -603,12 +379,7 @@ class HologramCore(QOpenGLWidget):
 
             radius = 1.95
 
-            glColor4f(
-                1.0,
-                0.65,
-                0.08,
-                0.9
-            )
+            glColor4f(1.0, 0.65, 0.08, 0.9)
 
             glVertex3f(
                 radius * math.cos(angle),
@@ -618,54 +389,23 @@ class HologramCore(QOpenGLWidget):
 
         glEnd()
 
-
-    # radial energy beams
     def draw_beams(self):
-
         glLineWidth(1.2)
-
         glBegin(GL_LINES)
 
         for i, beam in enumerate(self.beams):
-
             if i % 2 == 0:
+                glColor4f(1.0, 0.50, 0.05, 0.65)
+                glVertex3f(0, 0, 0)
 
-                # bright beam starting from core
-                glColor4f(
-                    1.0,
-                    0.50,
-                    0.05,
-                    0.65
-                )
-
-                glVertex3f(
-                    0,
-                    0,
-                    0
-                )
-
-                # fade toward outside
-                glColor4f(
-                    1.0,
-                    0.20,
-                    0.0,
-                    0.0
-                )
-
-                glVertex3fv(
-                    beam
-                )
+                glColor4f(1.0, 0.20, 0.0, 0.0)
+                glVertex3fv(beam)
 
         glEnd()
 
-
     def animate(self):
-
-        # smooth continuous animation
         self.angle += 0.45
-
         self.time += 0.02
-
         self.update()
 
 
@@ -675,22 +415,17 @@ class MessageInput(QLineEdit):
     sendPressed = Signal()
 
     def keyPressEvent(self, event):
-
-        if event.key() in (
-            Qt.Key_Return,
-            Qt.Key_Enter
-        ):
-
+        if event.key() in (Qt.Key_Return, Qt.Key_Enter):
             self.sendPressed.emit()
-
             return
 
         super().keyPressEvent(event)
 
-#the chat wit translucent overlay
+
+# the chat with translucent overlay
 class ChatOverlay(QWidget):
 
-    def __init__(self, parent = None):
+    def __init__(self, parent=None):
         super().__init__(parent)
 
         self.setAttribute(
@@ -699,61 +434,281 @@ class ChatOverlay(QWidget):
         )
 
         self.setStyleSheet("""
-            QWidget {
-                background-color: rgba(255, 100, 10, 50);
-                border: 1px solid rgba(255, 150, 50, 130);
+            ChatOverlay {
+                background-color: rgba(18, 10, 5, 235);
+                border: none;
             }
         """)
-        # fade anim
-        self.opacity_effect = QGraphicsOpacityEffect(
-            self
+
+        # scrolling area
+        self.scroll_area = QScrollArea(self)
+        self.scroll_area.setWidgetResizable(True)
+
+        self.scroll_area.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarAlwaysOff
         )
 
-        self.setGraphicsEffect(
-            self.opacity_effect
+        self.scroll_area.setVerticalScrollBarPolicy(
+            Qt.ScrollBarAsNeeded
         )
 
-        self.fade_animation = QPropertyAnimation(
-            self.opacity_effect,
-            b"opacity"
+        self.scroll_area.setFrameShape(QFrame.NoFrame)
+
+        self.scroll_area.setStyleSheet("""
+            QScrollArea {
+                background: transparent;
+                border: none;
+            }
+
+            QScrollBar:vertical {
+                background: rgba(20, 10, 5, 90);
+                width: 7px;
+                margin: 3px;
+                border-radius: 3px;
+            }
+
+            QScrollBar::handle:vertical {
+                background: rgba(255, 130, 30, 150);
+                border-radius: 3px;
+                min-height: 25px;
+            }
+
+            QScrollBar::handle:vertical:hover {
+                background: rgba(255, 160, 50, 220);
+            }
+
+            QScrollBar::add-line:vertical,
+            QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+        """)
+
+        self.chat_widget = QWidget()
+        self.chat_widget.setStyleSheet(
+            "QWidget { background: transparent; border: none; }"
         )
 
-        self.fade_animation.setDuration(
-            450
+        self.chat_layout = QVBoxLayout(self.chat_widget)
+        self.chat_layout.setContentsMargins(
+            30, 25, 30, 25
         )
 
-        self.fade_animation.setStartValue(
-            0.0
+        self.chat_layout.setSpacing(12)
+        self.chat_layout.setAlignment(Qt.AlignTop)
+
+        self.scroll_area.setWidget(self.chat_widget)
+
+        overlay_layout = QVBoxLayout(self)
+        overlay_layout.setContentsMargins(0, 0, 0, 0)
+        overlay_layout.addWidget(self.scroll_area)
+
+        self.processing_label = None
+        self.processing_row = None
+        self.processing_timer = None
+        self.processing_dots = 0
+
+    def create_bubble(self, text, is_user):
+        bubble = QLabel(text)
+
+        bubble.setWordWrap(True)
+        bubble.setTextInteractionFlags(Qt.NoTextInteraction)
+
+        viewport_width = self.scroll_area.viewport().width()
+
+        if viewport_width <= 0:
+            viewport_width = 760
+
+        bubble.setMaximumWidth(
+            min(
+                500,
+                max(260, viewport_width - 90)
+            )
         )
 
-        self.fade_animation.setEndValue(
-            1.0
+        bubble.setMinimumWidth(0)
+        bubble.setSizePolicy(
+            QSizePolicy.Maximum,
+            QSizePolicy.Preferred
         )
 
-        self.fade_animation.setEasingCurve(
-            QEasingCurve.OutCubic
+        if is_user:
+            bubble.setStyleSheet("""
+                QLabel {
+                    color: #fff0d0;
+                    background-color: rgba(255, 105, 15, 235);
+                    border: 1px solid rgba(255, 180, 80, 190);
+                    border-radius: 16px;
+                    padding: 10px 14px;
+                    font-size: 15px;
+                    font-family: Arial;
+                }
+            """)
+        else:
+            bubble.setStyleSheet("""
+                QLabel {
+                    color: #ffad42;
+                    background-color: rgba(28, 18, 8, 245);
+                    border: 1px solid rgba(255, 130, 30, 120);
+                    border-radius: 16px;
+                    padding: 10px 14px;
+                    font-size: 15px;
+                    font-family: Arial;
+                }
+            """)
+
+        bubble.setAlignment(
+            Qt.AlignLeft | Qt.AlignVCenter
         )
 
+        bubble.adjustSize()
+        return bubble
 
-    # chat fade in
-    def showEvent(self, event):
-
-        self.opacity_effect.setOpacity(
-            0.0
+    def add_message_row(self, bubble, is_user):
+        row = QWidget()
+        row.setSizePolicy(
+            QSizePolicy.Expanding,
+            QSizePolicy.Minimum
         )
 
-        self.fade_animation.stop()
-        self.fade_animation.start()
+        row_layout = QHBoxLayout(row)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        row_layout.setSpacing(0)
 
-        super().showEvent(
-            event
+        if is_user:
+            row_layout.addStretch()
+            row_layout.addWidget(
+                bubble,
+                0,
+                Qt.AlignRight
+            )
+        else:
+            row_layout.addWidget(
+                bubble,
+                0,
+                Qt.AlignLeft
+            )
+            row_layout.addStretch()
+
+        self.chat_layout.addWidget(row)
+        row.show()
+
+        bubble.updateGeometry()
+        row.updateGeometry()
+        self.chat_layout.activate()
+        self.chat_widget.adjustSize()
+
+        QTimer.singleShot(
+            0,
+            self.scroll_to_bottom
         )
-# main window with everything
+
+    def add_user_message(self, message):
+        self.add_message_row(
+            self.create_bubble(message, True),
+            True
+        )
+
+    def add_ultron_message(self, message):
+        self.add_message_row(
+            self.create_bubble(message, False),
+            False
+        )
+
+    def scroll_to_bottom(self):
+        QTimer.singleShot(
+            0,
+            lambda: self.scroll_area.verticalScrollBar().setValue(
+                self.scroll_area.verticalScrollBar().maximum()
+            )
+        )
+
+    # ultron processing start
+    def start_ultron_response(self):
+        if self.processing_timer:
+            self.processing_timer.stop()
+
+        if self.processing_row:
+            self.processing_row.deleteLater()
+
+        self.processing_dots = 0
+
+        self.processing_label = QLabel("PROCESSING")
+
+        self.processing_label.setStyleSheet("""
+            QLabel {
+                color: rgba(255, 165, 60, 240);
+                background: transparent;
+                border: none;
+                font-size: 14px;
+                font-family: Consolas;
+                padding: 4px 2px;
+            }
+        """)
+
+        self.processing_row = QWidget()
+
+        row_layout = QHBoxLayout(
+            self.processing_row
+        )
+
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        row_layout.setSpacing(0)
+
+        row_layout.addWidget(
+            self.processing_label
+        )
+
+        row_layout.addStretch()
+
+        self.chat_layout.addWidget(
+            self.processing_row
+        )
+
+        self.processing_timer = QTimer(self)
+        self.processing_timer.timeout.connect(
+            self.processing_tick
+        )
+
+        self.processing_timer.start(350)
+
+        self.scroll_to_bottom()
+
+    def processing_tick(self):
+        if not self.processing_label:
+            return
+
+        self.processing_dots += 1
+
+        if self.processing_dots > 3:
+            self.processing_dots = 0
+
+        self.processing_label.setText(
+            "PROCESSING" + "." * self.processing_dots
+        )
+
+        self.scroll_to_bottom()
+
+    def finish_processing(self, response):
+        if self.processing_timer:
+            self.processing_timer.stop()
+            self.processing_timer = None
+
+        if self.processing_row:
+            self.chat_layout.removeWidget(
+                self.processing_row
+            )
+
+            self.processing_row.deleteLater()
+            self.processing_row = None
+            self.processing_label = None
+
+        self.add_ultron_message(response)
+
+
 class UltronWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
-
 
         self.setWindowFlag(
             Qt.FramelessWindowHint
@@ -763,154 +718,95 @@ class UltronWindow(QMainWindow):
             "ULTRON"
         )
 
-        # original bigger window
-        self.resize(
-            850,
-            550
-        )
-
+        self.resize(850, 550)
 
         central = QWidget()
+        self.setCentralWidget(central)
 
-        self.setCentralWidget(
-            central
-        )
-
-
-        layout = QVBoxLayout(
-            central
-        )
-
+        layout = QVBoxLayout(central)
         layout.setContentsMargins(
-            20,
-            15,
-            20,
-            20
+            20, 15, 20, 20
         )
-
         layout.setSpacing(2)
 
-        #top bar
+        # top bar
         top_bar = QWidget()
 
-        top_layout = QHBoxLayout(
-            top_bar
-        )
-
-        top_layout.setContentsMargins(
-            5,
-            0,
-            5,
-            0
-        )
-
+        top_layout = QHBoxLayout(top_bar)
+        top_layout.setContentsMargins(5, 0, 5, 0)
         top_layout.setSpacing(0)
 
-
-        # title
-        title = QLabel(
-            "ULTRON"
-        )
-
+        title = QLabel("ULTRON")
         title.setAlignment(
             Qt.AlignLeft | Qt.AlignVCenter
         )
-
         title.setFont(
-            QFont(
-                "Arial",
-                30,
-                QFont.Bold
-            )
+            QFont("Arial", 30, QFont.Bold)
         )
 
-
-        # system status
-        status = QLabel(
-            "● SYSTEM ONLINE"
-        )
-
+        status = QLabel("● SYSTEM ONLINE")
         status.setAlignment(
             Qt.AlignRight | Qt.AlignVCenter
         )
-
         status.setFont(
-            QFont(
-                "Arial",
-                13
-            )
+            QFont("Arial", 13)
         )
 
-
-
-        top_layout.addWidget(
-            title,
-            1
-        )
-
-        top_layout.addWidget(
-            status
-        )
+        top_layout.addWidget(title, 1)
+        top_layout.addWidget(status)
 
         # hologram
         core = HologramCore()
-        #chatting overlay that will cover hologream
-        
 
         # message area
-        message_area = QWidget()
+        self.message_area = QWidget()
 
         message_layout = QHBoxLayout(
-            message_area
+            self.message_area
         )
 
         message_layout.setContentsMargins(
-            0,
-            8,
-            0,
-            0
+            0, 8, 0, 0
         )
-
         message_layout.setSpacing(8)
 
-
-        # input area
         self.message_input = MessageInput()
-
         self.message_input.setPlaceholderText(
             "Send a message..."
         )
+        self.message_input.setFixedHeight(46)
 
-        self.message_input.setFixedHeight(
-            46
-        )
+        self.message_input.setStyleSheet("""
+            QLineEdit {
+                background-color: rgba(20, 14, 10, 245);
+                color: #fffaf0;
+                border: 2px solid rgba(255, 135, 30, 190);
+                border-radius: 12px;
+                padding-left: 14px;
+                padding-right: 14px;
+                font-size: 15px;
+            }
 
+            QLineEdit:focus {
+                border: 2px solid rgba(255, 170, 70, 230);
+            }
 
-        # send btn
-        send_button = QPushButton(
-            "➤"
-        )
+            QLineEdit::placeholder {
+                color: #d7a868;
+            }
+        """)
 
-        send_button.setFixedSize(
-            46,
-            46
-        )
+        send_button = QPushButton("➤")
+        send_button.setFixedSize(46, 46)
+        send_button.setToolTip("Send message")
 
-        send_button.setToolTip(
-            "Send message"
-        )
-
-
-        # send the message when clicked
         send_button.clicked.connect(
             self.send_message
         )
 
-        # send the message when Enter is pressed
         self.message_input.sendPressed.connect(
             self.send_message
         )
-
 
         message_layout.addWidget(
             self.message_input,
@@ -921,39 +817,14 @@ class UltronWindow(QMainWindow):
             send_button
         )
 
+        layout.addWidget(top_bar)
+        layout.addWidget(core, 1)
+        layout.addWidget(self.message_area)
 
-        layout.addWidget(
-            top_bar
-        )
-
-        layout.addWidget(
-            core,
-            1
-        )
-
-        layout.addWidget(
-            message_area
-        )
-
-        #chat over will cover all area
-
-        self.chat_overlay = ChatOverlay(
-            central
-        )
-
-        self.chat_overlay.setGeometry(
-            central.rect()
-        )
-
+        # chat overlay
+        self.chat_overlay = ChatOverlay(central)
         self.chat_overlay.hide()
 
-
-        #voerlay is above all things
-        self.chat_overlay.raise_()
-
-        
-        # translucent hologram-style background
-        # dark holographic glass background
         central.setStyleSheet("""
             QWidget {
                 background-color: rgb(18, 12, 8);
@@ -964,20 +835,6 @@ class UltronWindow(QMainWindow):
                 color: #ff8c00;
                 background-color: transparent;
                 border: none;
-            }
-
-            QLineEdit {
-                background-color: rgba(10, 7, 5, 220);
-                color: #ff9d2e;
-                border: 2px solid rgba(255, 120, 20, 170);
-                border-radius: 12px;
-                padding-left: 14px;
-                padding-right: 14px;
-                font-size: 15px;
-            }
-
-            QLineEdit:focus {
-                border: 2px solid rgba(255, 150, 40, 220);
             }
 
             QPushButton {
@@ -998,47 +855,76 @@ class UltronWindow(QMainWindow):
             }
         """)
 
-    def resizeEvent(self, event):
-
-        super().resizeEvent(
-            event
+        QTimer.singleShot(
+            0,
+            self.update_overlay_geometry
         )
 
-        if hasattr(
-            self,
-            "chat_overlay"
-        ):
+    def update_overlay_geometry(self):
+        central = self.centralWidget()
 
-            self.chat_overlay.setGeometry(
-                self.centralWidget().rect()
-            )
+        if central is None:
+            return
+
+        input_top = self.message_area.geometry().top()
+
+        if input_top <= 0:
+            return
+
+        self.chat_overlay.setGeometry(
+            0,
+            0,
+            central.width(),
+            input_top
+        )
+
+        self.chat_overlay.raise_()
+        self.message_area.raise_()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.update_overlay_geometry()
+
     # handle messages from the input box
     def send_message(self):
-
         message = self.message_input.text().strip()
 
         if not message:
             return
 
-        print(
-            "User:",
-            message
-        )
+        print("User:", message)
 
         self.message_input.clear()
 
         self.chat_overlay.show()
+        self.update_overlay_geometry()
+
+        self.chat_overlay.add_user_message(
+            message
+        )
+
+        self.chat_overlay.start_ultron_response()
+
+        QTimer.singleShot(
+            3500,
+            self.finish_fake_response
+        )
+
+    def finish_fake_response(self):
+        self.chat_overlay.finish_processing(
+            "Systems online. How may I assist you?"
+        )
 
 
 # start application
-app = QApplication(
-    sys.argv
-)
+app = QApplication(sys.argv)
 
 window = UltronWindow()
-
 window.show()
 
-sys.exit(
-    app.exec()
+QTimer.singleShot(
+    0,
+    window.update_overlay_geometry
 )
+
+sys.exit(app.exec())
