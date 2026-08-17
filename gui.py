@@ -19,8 +19,9 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
-    QTextEdit
-)
+    QTextEdit,
+    QGraphicsOpacityEffect
+    )
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 
 from OpenGL.GL import *
@@ -697,13 +698,56 @@ class ChatOverlay(QWidget):
             True
         )
 
-        self.setstylesheet("""
+        self.setStyleSheet("""
             QWidget {
-                background-color: rgba(18, 12, 8, 225);
-                border: 2px solid rgba(255, 120, 20, 170);
-                border-radius: 16px;
-                }
+                background-color: rgba(255, 100, 10, 50);
+                border: 1px solid rgba(255, 150, 50, 130);
+            }
         """)
+        # fade anim
+        self.opacity_effect = QGraphicsOpacityEffect(
+            self
+        )
+
+        self.setGraphicsEffect(
+            self.opacity_effect
+        )
+
+        self.fade_animation = QPropertyAnimation(
+            self.opacity_effect,
+            b"opacity"
+        )
+
+        self.fade_animation.setDuration(
+            450
+        )
+
+        self.fade_animation.setStartValue(
+            0.0
+        )
+
+        self.fade_animation.setEndValue(
+            1.0
+        )
+
+        self.fade_animation.setEasingCurve(
+            QEasingCurve.OutCubic
+        )
+
+
+    # chat fade in
+    def showEvent(self, event):
+
+        self.opacity_effect.setOpacity(
+            0.0
+        )
+
+        self.fade_animation.stop()
+        self.fade_animation.start()
+
+        super().showEvent(
+            event
+        )
 # main window with everything
 class UltronWindow(QMainWindow):
 
@@ -810,7 +854,8 @@ class UltronWindow(QMainWindow):
 
         # hologram
         core = HologramCore()
-
+        #chatting overlay that will cover hologream
+        
 
         # message area
         message_area = QWidget()
@@ -890,7 +935,23 @@ class UltronWindow(QMainWindow):
             message_area
         )
 
+        #chat over will cover all area
 
+        self.chat_overlay = ChatOverlay(
+            central
+        )
+
+        self.chat_overlay.setGeometry(
+            central.rect()
+        )
+
+        self.chat_overlay.hide()
+
+
+        #voerlay is above all things
+        self.chat_overlay.raise_()
+
+        
         # translucent hologram-style background
         # dark holographic glass background
         central.setStyleSheet("""
@@ -937,7 +998,20 @@ class UltronWindow(QMainWindow):
             }
         """)
 
+    def resizeEvent(self, event):
 
+        super().resizeEvent(
+            event
+        )
+
+        if hasattr(
+            self,
+            "chat_overlay"
+        ):
+
+            self.chat_overlay.setGeometry(
+                self.centralWidget().rect()
+            )
     # handle messages from the input box
     def send_message(self):
 
@@ -952,6 +1026,8 @@ class UltronWindow(QMainWindow):
         )
 
         self.message_input.clear()
+
+        self.chat_overlay.show()
 
 
 # start application
