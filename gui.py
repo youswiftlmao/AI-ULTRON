@@ -2,6 +2,10 @@ import sys
 import math
 import random
 
+#brain ooooooo
+from brain import process_message
+
+
 from PySide6.QtCore import (
     Qt,
     QTimer,
