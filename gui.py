@@ -1133,15 +1133,17 @@ class UltronWindow(QMainWindow):
 
         self.chat_overlay.start_ultron_response()
 
+        response = process_message(message)
+
         QTimer.singleShot(
-            3500,
-            self.finish_fake_response
+            1000,
+            lambda: self.chat_overlay.finish_processing(response)
         )
 
-    def finish_fake_response(self):
-        self.chat_overlay.finish_processing(
-            "Systems online. How may I assist you?"
-        )
+
+
+
+
 
 
 # start application
