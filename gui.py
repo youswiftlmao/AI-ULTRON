@@ -2,7 +2,14 @@ import sys
 import math
 import random
 
-from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtCore import (
+    Qt,
+    QTimer,
+    Signal,
+    QPropertyAnimation,
+    QEasingCurve,
+    QRect
+)
 from PySide6.QtGui import QFont, QSurfaceFormat
 from PySide6.QtWidgets import (
     QApplication,
@@ -15,7 +22,8 @@ from PySide6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSizePolicy,
-    QFrame
+    QFrame,
+    QGraphicsOpacityEffect
 )
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 
@@ -440,6 +448,78 @@ class ChatOverlay(QWidget):
             }
         """)
 
+
+        self.opacityeffect = QGraphicsOpacityEffect(
+            self
+        )
+
+        self.setGraphicsEffect(
+            self.opacityeffect
+        )
+
+        self.fade_animation = QPropertyAnimation(
+            self.opacityeffect,
+            b"opacity"
+        )
+
+        self.fade_animation.setDuration(
+            350
+        )
+
+        self.fade_animation.setStartValue(
+            0.0
+        )
+
+        self.fade_animation.setEndValue(
+            1.0
+        )
+
+
+        self.fade_animation.setEasingCurve(
+            QEasingCurve.OutCubic
+        )
+        #fade out anim fo closing
+
+        self.fade_out_anim = QPropertyAnimation(
+            self.opacityeffect,
+            b"opacity"
+        )
+
+
+        self.fade_out_anim.setDuration(
+            300
+        )
+
+        self.fade_out_anim.setStartValue(
+            1.0
+        )
+
+        self.fade_out_anim.setEndValue(
+            0.0
+        )
+
+        self.fade_out_anim.setEasingCurve(
+            QEasingCurve.InCubic
+        )
+
+        self.fade_out_anim.finished.connect(
+            self.hide
+        )
+
+        
+
+        self.slide_animation = QPropertyAnimation(
+            self,
+            b"geometry"
+        )
+
+        self.slide_animation.setDuration(
+            350
+        )
+
+        self.slide_animation.setEasingCurve(
+            QEasingCurve.OutCubic
+        )
         # scrolling area
         self.scroll_area = QScrollArea(self)
         self.scroll_area.setWidgetResizable(True)
@@ -689,6 +769,7 @@ class ChatOverlay(QWidget):
         self.scroll_to_bottom()
 
     def finish_processing(self, response):
+
         if self.processing_timer:
             self.processing_timer.stop()
             self.processing_timer = None
@@ -702,7 +783,56 @@ class ChatOverlay(QWidget):
             self.processing_row = None
             self.processing_label = None
 
-        self.add_ultron_message(response)
+        self.respone_text = response
+        self.response_index = 0
+
+        self.response_label = self.create_bubble(
+            "",
+            False
+        )
+
+        self.add_message_row(
+            self.response_label,
+            False
+        )
+
+        self.response_timer = QTimer(
+            self
+        )
+
+        self.response_timer.timeout.connect(
+            self.type_response
+        )
+
+        self.response_timer.start(
+            35
+        )
+
+
+    def type_response(self):
+
+        if self.response_index >= len(
+            self.respone_text
+        ):
+
+            self.response_timer.stop()
+            self.response_timer = None
+
+            return
+
+        self.response_index += 1
+
+        self.response_label.setText(
+            self.respone_text[
+                :self.response_index
+            ]
+        )
+
+        self.response_label.adjustSize()
+
+        self.scroll_to_bottom()
+
+
 
 
 class UltronWindow(QMainWindow):
@@ -712,6 +842,10 @@ class UltronWindow(QMainWindow):
 
         self.setWindowFlag(
             Qt.FramelessWindowHint
+        )  
+
+        self.setFocusPolicy(
+            Qt.StrongFocus
         )
 
         self.setWindowTitle(
@@ -860,6 +994,97 @@ class UltronWindow(QMainWindow):
             self.update_overlay_geometry
         )
 
+    def keyPressEvent(self, event):
+
+        if event.key() == Qt.Key_Escape and self.chat_overlay.isVisible():
+            self.chat_overlay.fade_out_anim.start()
+
+            if self.chat_overlay.processing_timer:
+                self.chat_overlay.processing_timer.stop()
+                self.chat_overlay.processing_timer = None
+
+
+
+            if self.chat_overlay.response_timer:
+                self.chat_overlay.response_timer.stop()
+                self.chat_overlay.response_timer = None
+
+
+            if self.chat_overlay.processing_row:
+                self.chat_overlay.chat_layout.removeWidget(
+                    self.chat_overlay.processing_row
+                )
+
+                self.chat_overlay.processing_row.deleteLater()
+                self.chat_overlay.processing_row = None
+                self.chat_overlay.processing_label = None
+
+            return
+
+        super().keyPressEvent(event)
+
+
+
+
+
+    def show_chat(self):
+
+        central = self.centralWidget()
+
+        input_top = self.message_area.geometry().top()
+
+        if input_top <= 0:
+            return
+
+        final_geometry = QRect(
+            0,
+            0,
+            central.width(),
+            input_top
+        )
+
+        # only plays fade when chat opens first time
+        if not self.chat_overlay.isVisible():
+
+            self.chat_overlay.setGeometry(
+                0,
+                20,
+                central.width(),
+                input_top
+            )
+
+            self.chat_overlay.show()
+
+            self.chat_overlay.raise_()
+            self.message_area.raise_()
+
+            self.chat_overlay.opacityeffect.setOpacity(0.0)
+
+            self.chat_overlay.fade_animation.stop()
+            self.chat_overlay.slide_animation.stop()
+
+            self.chat_overlay.slide_animation.setStartValue(
+                self.chat_overlay.geometry()
+            )
+
+            self.chat_overlay.slide_animation.setEndValue(
+                final_geometry
+            )
+
+            self.chat_overlay.fade_animation.start()
+            self.chat_overlay.slide_animation.start()
+
+        else:
+
+            # stops replaing fade
+            self.chat_overlay.setGeometry(
+                final_geometry
+            )
+
+            self.chat_overlay.raise_()
+            self.message_area.raise_()
+
+
     def update_overlay_geometry(self):
         central = self.centralWidget()
 
@@ -896,8 +1121,7 @@ class UltronWindow(QMainWindow):
 
         self.message_input.clear()
 
-        self.chat_overlay.show()
-        self.update_overlay_geometry()
+        self.show_chat()
 
         self.chat_overlay.add_user_message(
             message
