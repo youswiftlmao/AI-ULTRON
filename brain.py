@@ -1,21 +1,39 @@
-from commands import execute_command
+import os
 
+from commands import open_application, open_website
+from google import genai
+from google.genai import types
+
+
+# gemini ai set up
+
+api_key = os.getenv("GEMINI_API_KEY")
+
+if not api_key:
+    raise RuntimeError("GEMINI_API_KEY was not found.")
+
+client = genai.Client(api_key=api_key)
+
+
+# ultrons pbrain
 
 def process_message(message):
     message = message.strip()
-    if not message :
+
+    if not message:
         return ""
 
-    #attempt to exectue command
+    # gemini
 
-    command_response = execute_command(message)
+    response = client.models.generate_content(
+        model="gemini-3.6-flash",
+        contents=message,
+        config=types.GenerateContentConfig(
+            tools=[
+                open_application,
+                open_website
+            ]
+        )
+    )
 
-
-    if command_response:
-        return command_response
-
-
-    #since /no ai brain yet il reply this only
-
-    return "message received, currently not coonected to ai, cant perform task"
-
+    return response.text
