@@ -26,7 +26,7 @@ def process_message(message):
     # gemini
 
     response = client.models.generate_content(
-        model="gemini-3.6-flash-lite",
+        model="gemini-3.6-flash",
         contents=message,
         config=types.GenerateContentConfig(
             tools=[
