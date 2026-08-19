@@ -6,13 +6,15 @@ import random
 from brain import process_message
 
 
+
 from PySide6.QtCore import (
     Qt,
     QTimer,
     Signal,
     QPropertyAnimation,
     QEasingCurve,
-    QRect
+    QRect,
+    QThread
 )
 from PySide6.QtGui import QFont, QSurfaceFormat
 from PySide6.QtWidgets import (
@@ -809,7 +811,7 @@ class ChatOverlay(QWidget):
         )
 
         self.response_timer.start(
-            35
+            15
         )
 
 
@@ -837,12 +839,29 @@ class ChatOverlay(QWidget):
         self.scroll_to_bottom()
 
 
+class MessageWorker(QThread):
+
+    finished = Signal(str)
+
+    def __init__(self, message):
+        super().__init__()
+        self.message = message
+
+    def run(self):
+        try:
+            response = process_message(self.message)
+            self.finished.emit(response)
+        except Exception as e:
+            self.finished.emit(f"Error: {e}")
 
 
 class UltronWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
+
+        self.worker = None
+
 
         self.setWindowFlag(
             Qt.FramelessWindowHint
@@ -1133,18 +1152,18 @@ class UltronWindow(QMainWindow):
 
         self.chat_overlay.start_ultron_response()
 
-        response = process_message(message)
+        if self.worker and self.worker.isRunning():
+            return
 
-        QTimer.singleShot(
-            1000,
-            lambda: self.chat_overlay.finish_processing(response)
+        self.worker = MessageWorker(message)
+
+        self.worker.finished.connect(
+            self.chat_overlay.finish_processing
         )
 
-
-
-
-
-
+        self.worker.start()
+    def worker_done(self):
+        self.worker = None
 
 # start application
 app = QApplication(sys.argv)
