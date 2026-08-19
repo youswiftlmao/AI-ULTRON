@@ -594,7 +594,9 @@ class ChatOverlay(QWidget):
         self.processing_dots = 0
 
     def create_bubble(self, text, is_user):
-        bubble = QLabel(text)
+        bubble = QLabel()
+        bubble.setTextFormat(Qt.MarkdownText)
+        bubble.setText(text)
 
         bubble.setWordWrap(True)
         bubble.setTextInteractionFlags(Qt.NoTextInteraction)
