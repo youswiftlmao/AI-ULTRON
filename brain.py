@@ -1,5 +1,6 @@
 import os
 import re
+import webbrowser
 from commands import open_application, open_website
 from google import genai
 from google.genai import types
@@ -28,12 +29,6 @@ def process_message(message):
     response = client.models.generate_content(
         model="gemini-3.6-flash",
         contents=message,
-        config=types.GenerateContentConfig(
-            tools=[
-                open_application,
-                open_website
-            ]
-        )
     )
 
     return response.text
@@ -63,33 +58,38 @@ def local_brain(message):
 
     #open somthign
 
-    if lower.startswith("open "):
+    if lower.startswith(("open ", "launch ")):
 
-        target = text[5:].strip()
+        if lower.startswith("open "):
+            target = text[5:].strip()
+        else:
+            target = text[7:].strip()
+
 
         if not target:
             return None
 
+        if target.startswith(("http://", "https://")):
+
+            return open_website(target)
+
+        #try if its a local app
+
+        app_result = open_application(target)
+
+        if not app_result.startswith("I do not know"):
+            return app_result
 
 
-        #if it looks like website
+        #if not a app
 
-        if (
-             target.startswith("http://")
-            or target.startswith("https://")
-            or "." in target
-        ):
-            url = target
+        webbrowser.open(
+            "https://" + target + ".com"
+        )
 
-            if not url.startswith(("http://", "https://")):
+        return f"opened {target} on the web."
 
-                url = "https://" + url
-
-            return open_website(url)
-
-        return open_application(target)
-
-    return None
+       
 
 
 #ultrons new processor wooooo
