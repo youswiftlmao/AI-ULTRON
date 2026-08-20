@@ -1,5 +1,5 @@
 import os
-from spotify import play_song
+
 import webbrowser
 from commands import open_application, open_website
 from google import genai
@@ -68,12 +68,10 @@ def local_brain(message):
         webbrowser.open("https://" + target + ".com")
         return f"opened {target} on the web."
 
-    if intent == "write":
-        return f"I understand i need to write: {target}"
-
     if intent == "play":
-        return play_song(target)
-
+        url = "https://open.spotify.com/search/" + target.replace(" ", "%20")
+        webbrowser.open(url)
+        return f"Opened Spotify and searched for {target}."
 
 
 
