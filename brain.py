@@ -57,7 +57,20 @@ def local_brain(message):
     lower = text.lower()
 
     #open somthign
+    parsed = understand(message)
 
+    if parsed:
+
+        if parsed["intent"] == "open":
+            return open_application(parsed["target"])
+
+        if parsed["intent"] == "write":
+            return f"I understand that you want me to write: {parsed['content']}"
+
+        if parsed["intent"] == "play":
+            return f"I understand that you want me to play: {parsed['target']}"
+
+        
     if lower.startswith(("open ", "launch ")):
 
         if lower.startswith("open "):
@@ -110,3 +123,108 @@ def process_message(message):
     #if cant use ai 
     print ("[ULTRON] sending request to gemni.")
     return _old_process_message(message)
+
+
+
+
+#ultron thinking mecbanics
+
+def  understand(message):
+
+    text = message.strip()
+    lower = text.lower()
+
+
+    if not text:
+        return None
+
+
+
+    #open apps with variations\
+
+    if any(word in lower for word in [
+        "open",
+        "launch",
+        "start",
+        "start up",
+        "bring up"
+    ]):
+
+        #removes filelr words
+        target = lower
+
+
+        for phrase in [
+            "can you ",
+            "could you ",
+            "please ",
+            "start up ",
+            "bring up ",
+            "open ",
+            "launch ",
+            "start "
+        ]:
+
+            target = target.replace(phrase, "", 1)
+
+
+        target = target.strip()
+
+        if target:
+            return{
+                "intent": "open",
+                "target": target
+            }
+
+    #make him able to write stuff
+
+    if any(word in lower for word in[
+        "write ",
+        "type ",
+        "enter "
+
+    ]):
+
+
+        content = text
+
+
+        for phrase in [
+            "can you ",
+            "could you ",
+            "please ",
+            "write ",
+            "type ",
+            "enter "
+        ]:
+            content = content.replace(
+                phrase,
+                "",
+                1
+            )
+
+        content = content.strip()
+
+        if content:
+            return{
+                "intent" : "write",
+                "content" : content 
+
+            }
+
+
+
+    if "play" in lower:
+        content = lower.split(
+            "play ",
+            1
+        )[1].strip()
+
+        if content:
+            return{
+                "intent":"play",
+                "target": content
+
+            }
+
+    return None
