@@ -1,230 +1,90 @@
 import os
-import re
 import webbrowser
 from commands import open_application, open_website
 from google import genai
-from google.genai import types
-
-
-# gemini ai set up
 
 api_key = os.getenv("GEMINI_API_KEY")
-
 if not api_key:
     raise RuntimeError("GEMINI_API_KEY was not found.")
 
 client = genai.Client(api_key=api_key)
 
 
-# ultrons pbrain
-
-def process_message(message):
-    message = message.strip()
-
-    if not message:
-        return ""
-
-    # gemini
-
-    response = client.models.generate_content(
+def ai_brain(message):
+    return client.models.generate_content(
         model="gemini-3.6-flash",
-        contents=message,
-    )
-
-    return response.text
+        contents=message
+    ).text
 
 
-
-
-
-
-
-
-
-def local_brain(message):
-
-        # small brain
-        #Returns:
-        #str  -> if ULTRON can handle the request locally
-        #None -> if the request should go to Gemini
-
-    text = message.strip()
-
-
-    if not text:
-        return ""
-
-    lower = text.lower()
-
-    #open somthign
-    parsed = understand(message)
-
-    if parsed:
-
-        if parsed["intent"] == "open":
-            return open_application(parsed["target"])
-
-        if parsed["intent"] == "write":
-            return f"I understand that you want me to write: {parsed['content']}"
-
-        if parsed["intent"] == "play":
-            return f"I understand that you want me to play: {parsed['target']}"
-
-        
-    if lower.startswith(("open ", "launch ")):
-
-        if lower.startswith("open "):
-            target = text[5:].strip()
-        else:
-            target = text[7:].strip()
-
-
-        if not target:
-            return None
-
-        if target.startswith(("http://", "https://")):
-
-            return open_website(target)
-
-        #try if its a local app
-
-        app_result = open_application(target)
-
-        if not app_result.startswith("I do not know"):
-            return app_result
-
-
-        #if not a app
-
-        webbrowser.open(
-            "https://" + target + ".com"
-        )
-
-        return f"opened {target} on the web."
-
-       
-
-
-#ultrons new processor wooooo
-
-_old_process_message = process_message
-
-def process_message(message):
-
-    #local brain
-
-    local_response = local_brain(message)
-
-    if local_response  is not None:
-        print ("[ULTRON] Local brain handled request.")
-        return local_response
-
-
-    #if cant use ai 
-    print ("[ULTRON] sending request to gemni.")
-    return _old_process_message(message)
-
-
-
-
-#ultron thinking mecbanics
-
-def  understand(message):
-
+def understand(message):
     text = message.strip()
     lower = text.lower()
 
-
-    if not text:
-        return None
-
-
-
-    #open apps with variations\
-
-    if any(word in lower for word in [
-        "open",
-        "launch",
-        "start",
-        "start up",
-        "bring up"
-    ]):
-
-        #removes filelr words
-        target = lower
-
-
-        for phrase in [
-            "can you ",
-            "could you ",
-            "please ",
-            "start up ",
-            "bring up ",
-            "open ",
-            "launch ",
-            "start "
+    for word in [
+        "open ",
+        "launch ",
+        "start ",
+        "start up ",
+        "bring up "
         ]:
 
-            target = target.replace(phrase, "", 1)
 
+        if lower.startswith(word):
+            return "open", text[len(word):].strip()
 
-        target = target.strip()
-
-        if target:
-            return{
-                "intent": "open",
-                "target": target
-            }
-
-    #make him able to write stuff
-
-    if any(word in lower for word in[
+    for word in [
         "write ",
         "type ",
         "enter "
-
-    ]):
-
-
-        content = text
-
-
-        for phrase in [
-            "can you ",
-            "could you ",
-            "please ",
-            "write ",
-            "type ",
-            "enter "
         ]:
-            content = content.replace(
-                phrase,
-                "",
-                1
-            )
 
-        content = content.strip()
+        
+        if lower.startswith(word):
+            return "write", text[len(word):].strip()
 
-        if content:
-            return{
-                "intent" : "write",
-                "content" : content 
-
-            }
-
-
-
-    if "play" in lower:
-        content = lower.split(
-            "play ",
-            1
-        )[1].strip()
-
-        if content:
-            return{
-                "intent":"play",
-                "target": content
-
-            }
+    if lower.startswith("play "):
+        return "play", text[5:].strip()
 
     return None
+
+
+def local_brain(message):
+    parsed = understand(message)
+    if not parsed:
+        return None
+
+    intent, target = parsed
+
+    if intent == "open":
+        if target.startswith(("http://", "https://")):
+            return open_website(target)
+
+        result = open_application(target)
+        if not result.startswith("I do not know"):
+            return result
+
+        webbrowser.open("https://" + target + ".com")
+        return f"opened {target} on the web."
+
+    if intent == "write":
+        return f"I understand i need to write: {target}"
+
+    if intent == "play":
+        return f"I understand you want me to play: {target}"
+
+
+def process_message(message):
+    result = local_brain(message)
+    return result if result is not None else ai_brain(message)
+
+
+def process_message(message):
+    result = local_brain(message)
+
+    if result is not None:
+        print("[ULTRON] Local brain handled request.")
+        return result
+
+    print("[ULTRON] Sending to Gemini.")
+    return ai_brain(message)
