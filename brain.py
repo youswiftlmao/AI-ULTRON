@@ -1,4 +1,5 @@
 import os
+from spotify import play_song
 import webbrowser
 from commands import open_application, open_website
 from google import genai
@@ -71,12 +72,9 @@ def local_brain(message):
         return f"I understand i need to write: {target}"
 
     if intent == "play":
-        return f"I understand you want me to play: {target}"
+        return play_song(target)
 
 
-def process_message(message):
-    result = local_brain(message)
-    return result if result is not None else ai_brain(message)
 
 
 def process_message(message):
